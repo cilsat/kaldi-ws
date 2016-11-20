@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+        <title>Kaldi Transkripsi</title>
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+        <script src="js/dictate.js"></script>
+        <script src="js/recorder.js"></script>
+        <script src="js/demo.js"></script>
+    </head>
+
+    <body>
+        <div class="container">
+            <h1>Kaldi Transkripsi</h1>
+            <div class="row">
+                <button
+                 type="button"
+                 id="buttonMic"
+                 class="btn btn-default"
+                 onclick="toggleMic();"
+                 title="Rekam dan transkripsi ucapan dari mikrofon.">Mic</button>
+                <button
+                 type="button"
+                 id="buttonFile"
+                 class="btn btn-default"
+                 onclick="sendFile();"
+                 title="Pilih dan upload file untuk ditranskripsi.">File</button>
+                <button
+                 type="button"
+                 id="buttonPlay"
+                 class="btn btn-default disabled"
+                 onclick="togglePlay();"
+                 title="Mainkan file yang telah diupload.">Main</button>
+            </div>
+
+            <br/>
+            <strong>Transkrip:</strong>
+            <br/>
+            <textarea rows="8" cols="80" id="trans">
+            </textarea>
+            <br/>
+            <span id="serverStatusBar" title="Number of available workers"></span>
+            <strong>Status:</strong><br/>
+            <div id="statusBar"></div>
+
+            <hr/>
+
+            <div class="row">
+                <button
+                 type="button"
+                 class="btn btn-default"
+                 onclick="showConfig();"
+                 title="Show the configuration of the Dictate object">Show Config</button>
+                <button
+                 type="button"
+                 class="btn btn-default"
+                 onclick="clearLog();"
+                 title="Clear the log">Clear Log</button>
+            </div>
+
+            <br/>
+            <strong>Log:</strong><br/>
+            <pre id="log">
+            </pre>
+        </div>
+    </body>
+</html>
