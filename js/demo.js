@@ -8,7 +8,7 @@
 //       and event callbacks onResults, onError, ...
 var tt = new Transcription();
 
-var dictate = new DictateMic({
+var cfgMic = {
     recorderWorkerPath : 'js/recorderWorker.js',
     onReadyForSpeech : function() {
         __message("READY FOR SPEECH");
@@ -49,12 +49,14 @@ var dictate = new DictateMic({
     onError : function(code, data) {
         __error(code, data);
         __status("Error: " + code);
-        dictate.cancel();
+        this.cancel();
     },
     onEvent : function(code, data) {
         __message(code, data);
     }
-});
+};
+
+var mic = new Microphone();
 
 // Private methods (called from the callbacks)
 function __message(code, data) {
@@ -93,23 +95,35 @@ function clearTranscription() {
 function toggleMic() {
     $('#buttonMic').toggleClass('active');
     if ($('#buttonMic').hasClass('active')) {
-        dictate.startListening();
+        mic.record();
     } else {
-        dictate.stopListening();
+        mic.stop();
     }
 }
 
 function toggleFile() {
+    $('#audioFile').toggleClass('hidden');
     $('#buttonFile').toggleClass('active');
-    console.log('$buttonFile');
+}
+
+function sendFile() {
+    var file = $('#audioFile').files[0];
+    console.log(file.filename);
 }
 
 function cancel() {
-    dictate.cancel();
+    mic.cancel();
 }
 
 function init() {
-    dictate.init();
+    mic.init();
+}
+
+function showLog() {
+    $('#buttonShowConfig').toggleClass('hidden');
+    $('#buttonClearLog').toggleClass('hidden');
+    $('#divLog').toggleClass('hidden');
+    $('#buttonLog').toggleClass('active');
 }
 
 function showConfig() {
@@ -117,9 +131,4 @@ function showConfig() {
     log.innerHTML = pp + "\n" + log.innerHTML;
     $(log).show();
 }
-
-window.onload = function() {
-    init();
-};
-
 

@@ -40,7 +40,7 @@
         9: 'Unavailable', // recognizer processes are currently in use and recognition cannot be performed
     };
 
-    var DictateMic = function(cfg) {
+    var Dictate = function(cfg) {
         var config = cfg || {};
         config.server = config.server || SERVER;
         config.audioSourceId = config.audioSourceId;
@@ -80,7 +80,7 @@
         // Can be called multiple times.
         // TODO: call something on success (MSG_INIT_RECORDER is currently called)
         this.init = function() {
-            var audioSourceConstraints = {};
+            var mediaSourceConstraints = {};
             config.onEvent(MSG_WAITING_MICROPHONE, "Menunggu akses mikrofon ...");
             try {
                 window.AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -95,14 +95,15 @@
 
             if (navigator.mediaDevices.getUserMedia) {
                 if(config.audioSourceId) {
-                    audioSourceConstraints.audio = {
+                    mediaSourceConstraints.audio = {
                         optional: [{ sourceId: config.audioSourceId }]
                     };
                 } else {
-                    audioSourceConstraints.audio = true;
+                    mediaSourceConstraints.audio = true;
+                    mediaSourceConstraints.video = false;
                 }
-                config.onEvent(MSG_DEBUG, "Get user media: " + audioSourceConstraints);
-                navigator.mediaDevices.getUserMedia(audioSourceConstraints).then(startUserMedia).catch(function(e) {
+                config.onEvent(MSG_DEBUG, "Get user media: " + mediaSourceConstraints.audio);
+                navigator.mediaDevices.getUserMedia(mediaSourceConstraints).then(startUserMedia).catch(function(e) {
                     config.onError(ERR_CLIENT, "No live audio input in this browser: " + e);
                 });
             } else {
@@ -354,7 +355,7 @@
         }
     }
 
-    window.DictateMic = DictateMic;
+    window.Dictate = Dictate;
     window.Transcription = Transcription;
 
 })(window);

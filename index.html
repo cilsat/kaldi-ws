@@ -8,13 +8,16 @@
         <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
         <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
         <script src="js/dictate.js"></script>
+        <script src="js/Microphone.js"></script>
         <script src="js/recorder.js"></script>
         <script src="js/demo.js"></script>
     </head>
 
     <body>
         <div class="container">
-            <h1>Kaldi Transkripsi</h1>
+            <div class="row">
+                <h1>Kaldi Transkripsi</h1>
+            </div>
             <div class="row">
                 <button
                  type="button"
@@ -26,45 +29,59 @@
                  type="button"
                  id="buttonFile"
                  class="btn btn-default"
-                 onclick="sendFile();"
+                 onclick="toggleFile();"
                  title="Pilih dan upload file untuk ditranskripsi.">File</button>
-                <button
-                 type="button"
-                 id="buttonPlay"
-                 class="btn btn-default disabled"
-                 onclick="togglePlay();"
-                 title="Mainkan file yang telah diupload.">Main</button>
+                <label class="custom-file">
+                    <input
+                       type="file"
+                       id="audioFile"
+                       class="custom-file-input hidden"
+                       onclick="sendFile();"/>
+                    <span class="custom-file-control"></span>
+                </label>
             </div>
 
-            <br/>
-            <strong>Transkrip:</strong>
-            <br/>
-            <textarea rows="8" cols="80" id="trans">
-            </textarea>
-            <br/>
-            <span id="serverStatusBar" title="Number of available workers"></span>
-            <strong>Status:</strong><br/>
-            <div id="statusBar"></div>
+            <div class="row">
+                <br/>
+                <strong>Transkrip:</strong>
+                <br/>
+                <textarea rows="8" cols="80" id="trans">
+                </textarea>
+                <br/>
+                <span id="serverStatusBar" title="Number of available workers"></span>
+                <strong>Status:</strong><br/>
+                <div id="statusBar"></div>
+            </div>
 
             <hr/>
 
             <div class="row">
                 <button
                  type="button"
+                 id="buttonLog"
                  class="btn btn-default"
+                 onclick="showLog();"
+                 title="Tunjukkan log.">Log</button>
+                <button
+                 type="button"
+                 id="buttonShowConfig"
+                 class="btn btn-default hidden"
                  onclick="showConfig();"
                  title="Show the configuration of the Dictate object">Show Config</button>
                 <button
                  type="button"
-                 class="btn btn-default"
+                 id="buttonClearLog"
+                 class="btn btn-default hidden"
                  onclick="clearLog();"
                  title="Clear the log">Clear Log</button>
             </div>
 
-            <br/>
-            <strong>Log:</strong><br/>
-            <pre id="log">
-            </pre>
+            <div id="divLog" class="row hidden">
+                <br/>
+                <strong>Log:</strong><br/>
+                <pre id="log">
+                </pre>
+            </div>
         </div>
     </body>
 </html>
