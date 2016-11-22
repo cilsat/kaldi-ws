@@ -94,6 +94,18 @@ function playFile() {
     audio.play();
 }
 
+function saveTranscript() {
+    var text = $('#trans').val();
+    var element = document.createElement('a');
+    element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+    element.setAttribute('download', 'transcription.txt');
+    element.style.display = 'none';
+    document.body.appendChild(element);
+
+    element.click();
+    document.body.removeChild(element);
+};
+
 function clearTranscript() {
     tt = new Transcription();
     $("#trans").val("");
