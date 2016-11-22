@@ -1,362 +1,281 @@
-(function(window){
+'use strict';
 
-    // Defaults
-    var SERVER = "ws://117.102.69.52:8017/client/ws/speech";
-    var SERVER_STATUS = "ws://117.102.69.52:8017/client/ws/status";
-    var REFERENCE_HANDLER = "http://117.102.69.52:8017/client/dynamic/reference";
-    var CONTENT_TYPE = "content-type=audio/x-raw,+layout=(string)interleaved,+rate=(int)16000,+format=(string)S16LE,+channels=(int)1";
-    // Send blocks 4 x per second as recommended in the server doc.
-    var INTERVAL = 250;
-    var TAG_END_OF_SENTENCE = "EOS";
-    var RECORDER_WORKER_PATH = './recorderWorker.js';
-
-    // Error codes (mostly following Android error names and codes)
-    var ERR_NETWORK = 2;
-    var ERR_AUDIO = 3;
-    var ERR_SERVER = 4;
-    var ERR_CLIENT = 5;
-
-    // Event codes
-    var MSG_WAITING_MICROPHONE = 1;
-    var MSG_MEDIA_STREAM_CREATED = 2;
-    var MSG_INIT_RECORDER = 3;
-    var MSG_RECORDING = 4;
-    var MSG_SEND = 5;
-    var MSG_SEND_EMPTY = 6;
-    var MSG_SEND_EOS = 7;
-    var MSG_WEB_SOCKET = 8;
-    var MSG_WEB_SOCKET_OPEN = 9;
-    var MSG_WEB_SOCKET_CLOSE = 10;
-    var MSG_STOP = 11;
-    var MSG_SERVER_CHANGED = 12;
-    var MSG_DEBUG = 13;
-
-    // Server status codes
-    // from https://github.com/alumae/kaldi-gstreamer-server
-    var SERVER_STATUS_CODE = {
-        0: 'Success', // Usually used when recognition results are sent
-        1: 'No speech', // Incoming audio contained a large portion of silence or non-speech
-        2: 'Aborted', // Recognition was aborted for some reason
-        9: 'Unavailable', // recognizer processes are currently in use and recognition cannot be performed
+function Dictate(_config) {
+    var configDefault = {
+        server: 'ws://117.102.69.52:8017',
+        serverSpeech: '/client/ws/speech',
+        serverStatus: '/client/ws/status',
+        contentType: 'content-type=audio/x-raw,+layout=(string)interleaved,+rate=(int)16000,+format=(string)S16LE,+channels=(int)1',
+        bufferSize: 8192,
+        inputChannels: 1,
+        outputChannels: 1
     };
 
-    var Dictate = function(cfg) {
-        var config = cfg || {};
-        config.server = config.server || SERVER;
-        config.audioSourceId = config.audioSourceId;
-        config.serverStatus = config.serverStatus || SERVER_STATUS;
-        config.referenceHandler = config.referenceHandler || REFERENCE_HANDLER;
-        config.contentType = config.contentType || CONTENT_TYPE;
-        config.interval = config.interval || INTERVAL;
-        config.recorderWorkerPath = config.recorderWorkerPath || RECORDER_WORKER_PATH;
-        config.onReadyForSpeech = config.onReadyForSpeech || function() {};
-        config.onEndOfSpeech = config.onEndOfSpeech || function() {};
-        config.onPartialResults = config.onPartialResults || function(data) {};
-        config.onResults = config.onResults || function(data) {};
-        config.onEndOfSession = config.onEndOfSession || function() {};
-        config.onEvent = config.onEvent || function(e, data) {};
-        config.onError = config.onError || function(e, data) {};
-        config.rafCallback = config.rafCallback || function(time) {};
-        if (config.onServerStatus) {
-            monitorServerStatus();
+    var config = _config;
+
+    // SERVER SETTINGS
+    this.server = config.server || configDefault.server
+    this.serverSpeech = config.serverSpeech || configDefault.serverSpeech;
+    this.serverStatus = config.serverStatus || configDefault.serverStatus;
+
+    // AUDIO SETTINGS
+    this.contentType = config.contentType || configDefault.contentType;
+    this.bufferSize = config.bufferSize || configDefault.bufferSize;
+    this.inputChannels = config.inputChannels || configDefault.inputChannels;
+    this.outputChannels = config.outputChannels || configDefault.outputChannels;
+    this.sampleRate = 16000;
+
+    // FILE VARIABLES
+    this.sending = false;
+    this.samplesOffset = 0;
+    this.chunkSize = 8000;
+    this.rate = 4;
+
+    // FILE METHODS
+    this.send = function(file) {
+        this.contentType = 'content-type=';
+        this.ws = this.createWebSocket();
+        this.audioFile = new Blob([file]);
+        this.samplesOffset = 0;
+
+        this.readChunks();
+    };
+
+    this.readChunks = function() {
+        var reader = new FileReader();
+        var chunk = this.audioFile.slice(this.samplesOffset,
+            this.samplesOffset + this.chunkSize);
+        reader.onload = this.onLoadChunk.bind(this);
+        reader.readAsArrayBuffer(chunk);
+    };
+
+    this.onLoadChunk = function(e) {
+        if (this.samplesOffset >= this.audioFile.size) {
+            console.log('file end');
+            this.ws.send('EOS');
+            window.setTimeout(this.closeWebSocket.bind(this), 1000);
+            return;
         }
 
-        // Initialized by init()
-        var audioContext;
-        var recorder;
-        // Initialized by startListening()
-        var ws;
-        var intervalKey;
-        // Initialized during construction
-        var wsServerStatus;
-
-        // Returns the configuration
-        this.getConfig = function() {
-            return config;
-        }
-
-        // Set up the recorder (incl. asking permission)
-        // Initializes audioContext
-        // Can be called multiple times.
-        // TODO: call something on success (MSG_INIT_RECORDER is currently called)
-        this.init = function() {
-            var mediaSourceConstraints = {};
-            config.onEvent(MSG_WAITING_MICROPHONE, "Menunggu akses mikrofon ...");
-            try {
-                window.AudioContext = window.AudioContext || window.webkitAudioContext;
-                navigator.mediaDevices.getUserMedia = navigator.mediaDevices.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
-                window.URL = window.URL || window.webkitURL;
-                audioContext = new AudioContext();
-            } catch (e) {
-                // Firefox 24: TypeError: AudioContext is not a constructor
-                // Set media.webaudio.enabled = true (in about:config) to fix this.
-                config.onError(ERR_CLIENT, "Error initializing Web Audio browser: " + e);
-            }
-
-            if (navigator.mediaDevices.getUserMedia) {
-                if(config.audioSourceId) {
-                    mediaSourceConstraints.audio = {
-                        optional: [{ sourceId: config.audioSourceId }]
-                    };
-                } else {
-                    mediaSourceConstraints.audio = true;
-                    mediaSourceConstraints.video = false;
-                }
-                config.onEvent(MSG_DEBUG, "Get user media: " + mediaSourceConstraints.audio);
-                navigator.mediaDevices.getUserMedia(mediaSourceConstraints).then(startUserMedia).catch(function(e) {
-                    config.onError(ERR_CLIENT, "No live audio input in this browser: " + e);
-                });
+        if (e.target.error == null) {
+            var buffer = e.target.result;
+            var state = this.ws.readyState;
+            if (state == 1) {
+                //console.log('ws blob sent ' + buffer);
+                this.ws.send(buffer);
+                this.samplesOffset += buffer.byteLength;
             } else {
-                config.onError(ERR_CLIENT, "No user media support");
+                console.log('ws readyState ' + state);
             }
+        } else {
+            console.log(e.target.error);
+        }
+        // delay next read chunk according to rate
+        window.setTimeout(this.readChunks.bind(this), 250);
+    };
+
+    // MICROPHONE VARIABLES
+    this.recording = false;
+    this.requestedAccess = false;
+    this.bufferUnusedSamples = new Float32Array(0);
+    this.samplesAll = new Float32Array(20000000);
+    this.samplesAllOffset = 0;
+
+    // MICROPHONE METHODS
+    this.record = function() {
+        if (!navigator.mediaDevices.getUserMedia || this.requestedAccess)
+            return;
+
+        this.requestedAccess = true;
+        console.log('init recording');
+        navigator.mediaDevices.getUserMedia({audio: true})
+            .then(this.onMediaStream.bind(this))
+            .catch(this.onPermissionRejected.bind(this));
+    };
+
+    this.onMediaStream = function(stream) {
+        var AudioContext = window.AudioContext || window.webkitAudioContext;
+
+        console.log('handling media stream');
+        if (!AudioContext)
+            console.log('AudioContext unavailable');
+
+        if (!this.audioContext)
+            this.audioContext = new AudioContext();
+
+        var gain = this.audioContext.createGain();
+        var audioInput = this.audioContext.createMediaStreamSource(stream);
+
+        audioInput.connect(gain);
+
+        if(!this.mic) {
+            this.mic = this.audioContext.createScriptProcessor(this.bufferSize,
+                this.inputChannels, this.outputChannels);
         }
 
-        // Start recording and transcribing
-        this.startListening = function() {
-            if (! recorder) {
-                config.onError(ERR_AUDIO, "Recorder undefined");
-                return;
-            }
+        this.ws = this.createWebSocket();
+        this.sampleRate = this.audioContext.sampleRate;
+        console.log(this.sampleRate);
 
-            if (ws) {
-                cancel();
-            }
+        this.mic.onaudioprocess = this._onaudioprocess.bind(this);
+        this.stream = stream;
 
-            try {
-                ws = createWebSocket();
-            } catch (e) {
-                config.onError(ERR_CLIENT, "No web socket support in this browser!");
-            }
-        }
+        gain.connect(this.mic);
+        this.mic.connect(this.audioContext.destination);
+        this.recording = true;
+        this.requestedAccess = false;
+    };
 
-        // Stop listening, i.e. recording and sending of new input.
-        this.stopListening = function() {
-            // Stop the regular sending of audio
-            clearInterval(intervalKey);
-            // Stop recording
-            if (recorder) {
-                recorder.stop();
-                config.onEvent(MSG_STOP, 'Stopped recording');
-                // Push the remaining audio to the server
-                recorder.export16kMono(function(blob) {
-                    socketSend(blob);
-                    socketSend(TAG_END_OF_SENTENCE);
-                    recorder.clear();
-                }, 'audio/x-raw');
-                config.onEndOfSpeech();
+    this._onaudioprocess = function(data) {
+        if (!this.recording) return;
+        var chan = data.inputBuffer.getChannelData(0);
+        this.saveData(new Float32Array(chan));
+        this.onAudio(this._exportDataBufferTo16Khz(new Float32Array(chan)));
+    };
+
+    this.onAudio = function(blob) {
+        if (this.ws) {
+            var state = this.ws.readyState;
+            if (state == 1) {
+                console.log('ws send blob ' + blob);
+                this.ws.send(blob);
             } else {
-                config.onError(ERR_AUDIO, "Recorder undefined");
+                console.log('ws network error');
             }
         }
+    };
 
-        // Cancel everything without waiting on the server
-        this.cancel = function() {
-            // Stop the regular sending of audio (if present)
-            clearInterval(intervalKey);
-            if (recorder) {
-                recorder.stop();
-                recorder.clear();
-                config.onEvent(MSG_STOP, 'Stopped recording');
-            }
-            if (ws) {
-                ws.close();
-                ws = null;
-            }
+    this.onPermissionRejected = function(e) {
+        this.requestedAccess = false;
+        console.log('rejected ' + e);
+        //config.onError(ERR_CLIENT, 'Permission to access microphone rejected');
+    };
+
+    this.onError = function(e) {
+        config.onError(ERR_CLIENT, e);
+    };
+
+    this.stop = function() {
+        if (!this.recording) return;
+        this.recording = false;
+        this.stream.getTracks()[0].stop();
+        this.requestedAccess = false;
+        this.mic.disconnect(0);
+        if (this.audioContext) {
+            this.audioContext.close();
+            this.audioContext = null;
         }
+        this.closeWebSocket();
+    };
 
-        // Sets the URL of the speech server
-        this.setServer = function(server) {
-            config.server = server;
-            config.onEvent(MSG_SERVER_CHANGED, 'Server changed: ' + server);
+    this.closeWebSocket = function() {
+        if (this.ws) {
+            this.ws.close();
+            this.ws = null;
         }
+    };
 
-        // Sets the URL of the speech server status server
-        this.setServerStatus = function(serverStatus) {
-            config.serverStatus = serverStatus;
+    // UTILITY METHODS
+    this.createWebSocket = function() {
+        console.log('ws connecting');
+        var url = this.server + this.serverSpeech + '?' + this.contentType;
+        var ws = new WebSocket(url);
 
-            if (config.onServerStatus) {
-                monitorServerStatus();
-            }
-
-            config.onEvent(MSG_SERVER_CHANGED, 'Server status server changed: ' + serverStatus);
-        }
-
-        // Sends reference text to speech server
-        this.submitReference = function submitReference(text, successCallback, errorCallback) {
-            var headers = {}
-            if (config["user_id"]) {
-                headers["User-Id"] = config["user_id"]
-            }
-            if (config["content_id"]) {
-                headers["Content-Id"] = config["content_id"]
-            }
-            $.ajax({
-                url: config.referenceHandler,
-                type: "POST",
-                headers: headers,
-                data: text,
-                dataType: "text",
-                success: successCallback,
-                error: errorCallback,
-            });
-        }
-
-        // Private methods
-        function startUserMedia(stream) {
-            var input = audioContext.createMediaStreamSource(stream);
-            config.onEvent(MSG_MEDIA_STREAM_CREATED, 'Media stream created');
-
-            // make the analyser available in window context
-            window.userSpeechAnalyser = audioContext.createAnalyser();
-            input.connect(window.userSpeechAnalyser);
-
-            config.rafCallback();
-
-            recorder = new Recorder(input, { workerPath : config.recorderWorkerPath });
-            config.onEvent(MSG_INIT_RECORDER, 'Recorder initialized');
-        }
-
-        function socketSend(item) {
-            if (ws) {
-                var state = ws.readyState;
-                if (state == 1) {
-                    // If item is an audio blob
-                    if (item instanceof Blob) {
-                        if (item.size > 0) {
-                            ws.send(item);
-                            config.onEvent(MSG_SEND, 'Send: blob: ' + item.type + ', ' + item.size);
-                        } else {
-                            config.onEvent(MSG_SEND_EMPTY, 'Send: blob: ' + item.type + ', EMPTY');
-                        }
-                        // Otherwise it's the EOS tag (string)
+        ws.onmessage = function(msg) {
+            var data = msg.data;
+            if (!(data instanceof Object) || !(data instanceof Blob)) {
+                var res = window.JSON.parse(data);
+                if (res.status == 0) {
+                    if (res.result.final) {
+                        console.log('final: ' + res.result.hypotheses[0].transcript);
+                        config.onResults(res.result.hypotheses);
                     } else {
-                        ws.send(item);
-                        config.onEvent(MSG_SEND_EOS, 'Send tag: ' + item);
+                        config.onPartialResults(res.result.hypotheses);
                     }
                 } else {
-                    config.onError(ERR_NETWORK, 'WebSocket: readyState!=1: ' + state + ": failed to send: " + item);
+                    console.log('ws error status ' + res.status);
                 }
             } else {
-                config.onError(ERR_CLIENT, 'No web socket connection: failed to send: ' + item);
+                console.log('ws cannot parse msg');
             }
-        }
+        };
 
+        ws.onclose = function(msg) {
+            var code = msg.code;
+            var reason = msg.reason;
+            var wasClean = msg.wasClean;
+            console.log('ws closed: ' + code + '/' + reason + '/' + wasClean);
+        };
 
-        function createWebSocket() {
-            // TODO: do we need to use a protocol?
-            //var ws = new WebSocket("ws://127.0.0.1:8081", "echo-protocol");
-            var url = config.server + '?' + config.contentType;
-            if (config["user_id"]) {
-                url += '&user-id=' + config["user_id"]
-            }
-            if (config["content_id"]) {
-                url += '&content-id=' + config["content_id"]
-            }
-            var ws = new WebSocket(url);
+        ws.onerror = function(e) {
+            console.log('ws error: ' + e.data)
+        };
 
-            ws.onmessage = function(e) {
-                var data = e.data;
-                config.onEvent(MSG_WEB_SOCKET, data);
-                if (data instanceof Object && ! (data instanceof Blob)) {
-                    config.onError(ERR_SERVER, 'WebSocket: onEvent: got Object that is not a Blob');
-                } else if (data instanceof Blob) {
-                    config.onError(ERR_SERVER, 'WebSocket: got Blob');
-                } else {
-                    var res = JSON.parse(data);
-                    if (res.status == 0) {
-                        if (res.result.final) {
-                            config.onResults(res.result.hypotheses);
-                        } else {
-                            config.onPartialResults(res.result.hypotheses);
-                        }
-                    } else {
-                        config.onError(ERR_SERVER, 'Server error: ' + res.status + ': ' + getDescription(res.status));
-                    }
-                }
-            }
-
-            // Start recording only if the socket becomes open
-            ws.onopen = function(e) {
-                intervalKey = setInterval(function() {
-                    recorder.export16kMono(function(blob) {
-                        socketSend(blob);
-                        recorder.clear();
-                    }, 'audio/x-raw');
-                }, config.interval);
-                // Start recording
-                recorder.record();
-                config.onReadyForSpeech();
-                config.onEvent(MSG_WEB_SOCKET_OPEN, e);
-            };
-
-            // This can happen if the blob was too big
-            // E.g. "Frame size of 65580 bytes exceeds maximum accepted frame size"
-            // Status codes
-            // http://tools.ietf.org/html/rfc6455#section-7.4.1
-            // 1005:
-            // 1006:
-            ws.onclose = function(e) {
-                var code = e.code;
-                var reason = e.reason;
-                var wasClean = e.wasClean;
-                // The server closes the connection (only?)
-                // when its endpointer triggers.
-                config.onEndOfSession();
-                config.onEvent(MSG_WEB_SOCKET_CLOSE, e.code + "/" + e.reason + "/" + e.wasClean);
-            };
-
-            ws.onerror = function(e) {
-                var data = e.data;
-                config.onError(ERR_NETWORK, data);
-            }
-
-            return ws;
-        }
-
-        function monitorServerStatus() {
-            if (wsServerStatus) {
-                wsServerStatus.close();
-            }
-            wsServerStatus = new WebSocket(config.serverStatus);
-            wsServerStatus.onmessage = function(evt) {
-                config.onServerStatus(JSON.parse(evt.data));
-            };
-        }
-
-        function getDescription(code) {
-            if (code in SERVER_STATUS_CODE) {
-                return SERVER_STATUS_CODE[code];
-            }
-            return "Unknown error";
-        }
+        return ws;
     };
 
-    var DictateFile = function() {
-        this.init = function() {
+    this.saveData = function(samples) {
+        for (var i = 0; i < samples.length; ++i) {
+            this.samplesAll[this.samplesAllOffset + i] = samples[i];
         }
+        this.samplesAllOffset += samples.length;
+        //console.log('samples: ' + this.samplesAllOffset);
     };
 
-    // Simple class for persisting the transcription.
-    // If isFinal==true then a new line is started in the transcription list
-    // (which only keeps the final transcriptions).
-    var Transcription = function(cfg) {
+    this._exportDataBufferTo16Khz = function(bufferNewSamples) {
+        var buffer = null;
+        var newSamples = bufferNewSamples.length;
+        var unusedSamples = this.bufferUnusedSamples.length;
+        var i;
+
+        if (unusedSamples > 0) {
+            buffer = new Float32Array(unusedSamples + newSamples);
+            for (i = 0; i < unusedSamples; ++i) {
+                buffer[i] = this.bufferUnusedSamples[i];
+            }
+            for (i = 0; i < newSamples; ++i) {
+                buffer[unusedSamples + i] = bufferNewSamples[i];
+            }
+        } else {
+            buffer = bufferNewSamples;
+        }
+
+        var filter = [
+            -0.037935, -0.00089024, 0.040173, 0.019989, 0.0047792, -0.058675,
+            -0.056487, -0.0040653, 0.14527, 0.26927, 0.33913, 0.26927, 0.14527,
+            -0.0040653, -0.056487, -0.058675, 0.0047792, 0.019989, 0.040173,
+            -0.00089024, -0.037935
+        ];
+        var samplingRateRatio = this.sampleRate / 16000;
+        var nOutputSamples = Math.floor((buffer.length - filter.length) / (samplingRateRatio)) + 1;
+        var pcmEncodedBuffer16k = new ArrayBuffer(nOutputSamples * 2);
+        var dataView16k = new DataView(pcmEncodedBuffer16k);
         var index = 0;
-        var list = [];
+        var volume = 0x7FFF;
+        var nOut = 0;
 
-        this.add = function(text, isFinal) {
-            list[index] = text;
-            if (isFinal) {
-                index++;
+        for (i = 0; i + filter.length - 1 < buffer.length; i = Math.round(samplingRateRatio * nOut)) {
+            var sample = 0;
+            for (var j = 0; j < filter.length; ++j) {
+                sample += buffer[i + j] * filter[j];
             }
+            sample *= volume;
+            dataView16k.setInt16(index, sample, true); // 'true' -> little endian
+            index += 2;
+            nOut++;
         }
 
-        this.toString = function() {
-            return list.join('. ');
+        var indexSampleAfterLastUsed = Math.round(samplingRateRatio * nOut);
+        var remaining = buffer.length - indexSampleAfterLastUsed;
+        if (remaining > 0) {
+            this.bufferUnusedSamples = new Float32Array(remaining);
+            for (i = 0; i < remaining; ++i) {
+                this.bufferUnusedSamples[i] = buffer[indexSampleAfterLastUsed + i];
+            }
+        } else {
+            this.bufferUnusedSamples = new Float32Array(0);
         }
-    }
 
-    window.Dictate = Dictate;
-    window.Transcription = Transcription;
-
-})(window);
-
+        return new Blob([dataView16k], {type: 'audio/l16'});
+    };
+}

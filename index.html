@@ -5,11 +5,9 @@
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
         <title>Kaldi Transkripsi</title>
         <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
-        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
-        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+        <script src="js/jquery-3.1.1.min.js"></script>
+        <script src="js/bootstrap.min.js"></script>
         <script src="js/dictate.js"></script>
-        <script src="js/Microphone.js"></script>
-        <script src="js/recorder.js"></script>
         <script src="js/demo.js"></script>
     </head>
 
@@ -25,14 +23,20 @@
                  class="btn btn-default"
                  onclick="toggleMic();"
                  title="Rekam dan transkripsi ucapan dari mikrofon.">Mic</button>
-                <label
-                id="buttonFile"
-                class="btn btn-default btn-file">
-                    File
-                    <input type="file" id="audioFile" style="display: none;" onchange="handleFile();"/>
-                </label>
+                <button
+                 type="button"
+                 id="buttonFile"
+                 class="btn btn-default"
+                 onclick="toggleFile();">File</button>
                 <br/>
                 <span class="label label-info hidden" id="infoFile"></span>
+                <br/>
+                <label
+                id="buttonBrowse"
+                class="btn btn-default btn-file hidden">
+                    Browse
+                    <input type="file" id="audioFile" style="display: none;" onchange="handleFile();"/>
+                </label>
                 <button
                 type="button"
                 id="buttonSend"
@@ -45,46 +49,21 @@
                 onclick="playFile();">Play</button>
             </div>
 
-            <div class="row">
+            <div class="row form-group">
                 <br/>
-                <strong>Transkrip:</strong>
-                <br/>
-                <textarea rows="8" cols="80" id="trans">
+                <textarea class="form-control" rows="8" id="trans">
                 </textarea>
                 <br/>
-                <span id="serverStatusBar" title="Number of available workers"></span>
-                <strong>Status:</strong><br/>
-                <div id="statusBar"></div>
-            </div>
-
-            <hr/>
-
-            <div class="row">
                 <button
-                 type="button"
-                 id="buttonLog"
-                 class="btn btn-default"
-                 onclick="showLog();"
-                 title="Tunjukkan log.">Log</button>
+                type="button"
+                id="buttonSave"
+                class="btn btn-default"
+                onclick="saveTranscript();">Save</button>
                 <button
-                 type="button"
-                 id="buttonShowConfig"
-                 class="btn btn-default hidden"
-                 onclick="showConfig();"
-                 title="Show the configuration of the Dictate object">Show Config</button>
-                <button
-                 type="button"
-                 id="buttonClearLog"
-                 class="btn btn-default hidden"
-                 onclick="clearLog();"
-                 title="Clear the log">Clear Log</button>
-            </div>
-
-            <div id="divLog" class="row hidden">
-                <br/>
-                <strong>Log:</strong><br/>
-                <pre id="log">
-                </pre>
+                type="button"
+                id="buttonClear"
+                class="btn btn-default"
+                onclick="clearTranscript();">Clear</button>
             </div>
         </div>
     </body>
