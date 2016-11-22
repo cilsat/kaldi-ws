@@ -45,21 +45,26 @@ function __updateTranscript(text) {
 
 // Public methods (called from the GUI)
 function toggleMic() {
-    $('#buttonMic').toggleClass('active');
-    $('#buttonFile').toggleClass('disabled');
-    if ($('#buttonMic').hasClass('active')) {
-        dictate.record();
-    } else {
-        dictate.stop();
+    if (!$('#buttonMic').hasClass('disabled')) {
+        $('#buttonMic').toggleClass('active');
+        $('#buttonFile').toggleClass('disabled');
+        if ($('#buttonMic').hasClass('active')) {
+            dictate.record();
+        } else {
+            dictate.stop();
+        }
     }
 }
 
 function toggleFile() {
-    $('#buttonFile').toggleClass('active');
-    $('#buttonBrowse').toggleClass('hidden');
-    $('#buttonSend').toggleClass('hidden');
-    $('#buttonPlay').toggleClass('hidden');
-    $('#infoFile').toggleClass('hidden');
+    if (!$('#buttonFile').hasClass('disabled')) {
+        $('#buttonFile').toggleClass('active');
+        $('#buttonMic').toggleClass('disabled');
+        $('#buttonBrowse').toggleClass('hidden');
+        $('#buttonSend').toggleClass('hidden');
+        $('#buttonPlay').toggleClass('hidden');
+        $('#infoFile').toggleClass('hidden');
+    }
 }
 
 function handleFile() {

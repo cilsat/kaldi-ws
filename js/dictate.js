@@ -115,7 +115,6 @@ function Dictate(_config) {
 
         this.ws = this.createWebSocket();
         this.sampleRate = this.audioContext.sampleRate;
-        console.log(this.sampleRate);
 
         this.mic.onaudioprocess = this._onaudioprocess.bind(this);
         this.stream = stream;
