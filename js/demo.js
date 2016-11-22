@@ -50,8 +50,12 @@ function toggleMic() {
         $('#buttonFile').toggleClass('disabled');
         if ($('#buttonMic').hasClass('active')) {
             dictate.record();
+            $('#textStart').addClass('hidden');
+            $('#textMic').removeClass('hidden');
         } else {
             dictate.stop();
+            $('#textStart').removeClass('hidden');
+            $('#textMic').addClass('hidden');
         }
     }
 }
@@ -60,6 +64,8 @@ function toggleFile() {
     if (!$('#buttonFile').hasClass('disabled')) {
         $('#buttonFile').toggleClass('active');
         $('#buttonMic').toggleClass('disabled');
+        $('#textStart').toggleClass('hidden');
+        $('#textFile').toggleClass('hidden');
         $('#buttonBrowse').toggleClass('hidden');
         $('#buttonSend').toggleClass('hidden');
         $('#buttonPlay').toggleClass('hidden');
@@ -87,16 +93,20 @@ function handleFile() {
 }
 
 function sendFile() {
-    dictate.send($('#audioFile').get(0).files[0]);
+    if (!$('#buttonSend').hasClass('disabled')) {
+        dictate.send($('#audioFile').get(0).files[0]);
+    }
 }
 
 function playFile() {
-    var file = $('#audioFile').get(0).files[0];
-    var wavBlob = new Blob([file]);
-    var wavURL = window.URL.createObjectURL(wavBlob);
-    var audio = new Audio();
-    audio.src = wavURL;
-    audio.play();
+    if (!$('#buttonPlay').hasClass('disabled')) {
+        var file = $('#audioFile').get(0).files[0];
+        var wavBlob = new Blob([file]);
+        var wavURL = window.URL.createObjectURL(wavBlob);
+        var audio = new Audio();
+        audio.src = wavURL;
+        audio.play();
+    }
 }
 
 function saveTranscript() {
@@ -118,5 +128,8 @@ function clearTranscript() {
 
 window.onload = function() {
     clearTranscript();
+    if (!window.AudioContext || !navigator.mediaDevices.getUserMedia) {
+        $('#textBrowser').removeClass('hidden');
+    }
 };
 

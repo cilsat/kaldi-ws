@@ -16,37 +16,48 @@
             <div class="row">
                 <h1>Perisalah Kaldi</h1>
             </div>
+            <br/>
             <div class="row">
-                <button
-                 type="button"
-                 id="buttonMic"
-                 class="btn btn-default"
-                 onclick="toggleMic();"
-                 title="Rekam dan transkripsi ucapan dari mikrofon.">Mic</button>
-                <button
-                 type="button"
-                 id="buttonFile"
-                 class="btn btn-default"
-                 onclick="toggleFile();">File</button>
-                <br/>
-                <span class="label label-info hidden" id="infoFile"></span>
-                <br/>
-                <label
-                id="buttonBrowse"
-                class="btn btn-default btn-file hidden">
-                    Browse
-                    <input type="file" id="audioFile" style="display: none;" onchange="handleFile();"/>
-                </label>
-                <button
-                type="button"
-                id="buttonSend"
-                class="btn btn-default hidden disabled"
-                onclick="sendFile();">Send</button>
-                <button
-                type="button"
-                id="buttonPlay"
-                class="btn btn-default hidden disabled"
-                onclick="playFile();">Play</button>
+                <div class="col-sm-4">
+                    <button
+                     type="button"
+                     id="buttonMic"
+                     class="btn btn-default"
+                     onclick="toggleMic();"
+                     title="Kenali ucapan dari mikrofon.
+• Tekan tombol Mic untuk mulai mengenali ucapan melalui mikrofon.
+• Tekan kembali untuk berhenti.">Mic</button>
+                    <button
+                     type="button"
+                     id="buttonFile"
+                     class="btn btn-default"
+                     onclick="toggleFile();"
+                     title="Kenali ucapan dalam file audio.
+• Tekan tombol File untuk menampilkan pilihan file.
+• Tekan tombol File lagi untuk kembali.">File</button>
+                    <br/>
+                    <span class="label label-info hidden" id="infoFile"></span>
+                    <br/>
+                    <label
+                    id="buttonBrowse"
+                    class="btn btn-default btn-file hidden"
+                    title="Pilih file audio untuk dikenali.
+• File harus berformat WAV Mono 16 kHz 16-bit.">Browse
+                        <input type="file" id="audioFile" style="display: none;" onchange="handleFile();"/>
+                    </label>
+                    <button
+                    type="button"
+                    id="buttonSend"
+                    class="btn btn-default hidden disabled"
+                    onclick="sendFile();"
+                    title="Kirim file yang telah diplih dan mulai kenali.">Send</button>
+                    <button
+                    type="button"
+                    id="buttonPlay"
+                    class="btn btn-default hidden disabled"
+                    onclick="playFile();"
+                    title="Mainkan file yang telah dipilih.">Play</button>
+                </div>
             </div>
 
             <div class="row form-group">
@@ -54,17 +65,22 @@
                 <textarea class="form-control" rows="8" id="trans">
                 </textarea>
                 <br/>
-                <button
-                type="button"
-                id="buttonSave"
-                class="btn btn-default"
-                onclick="saveTranscript();">Save</button>
-                <button
-                type="button"
-                id="buttonClear"
-                class="btn btn-default"
-                onclick="clearTranscript();">Clear</button>
+                <div class="col-sm-4">
+                    <button
+                    type="button"
+                    id="buttonSave"
+                    class="btn btn-default"
+                    title="Simpan hasil pengenalan sebagai file."
+                    onclick="saveTranscript();">Save</button>
+                    <button
+                    type="button"
+                    id="buttonClear"
+                    class="btn btn-default"
+                    title="Hapus hasil pengenalan."
+                    onclick="clearTranscript();">Clear</button>
+                </div>
             </div>
         </div>
     </body>
 </html>
+

@@ -2,7 +2,7 @@
 
 function Dictate(_config) {
     var configDefault = {
-        server: 'ws://117.102.69.52:8013',
+        server: 'ws://117.102.69.52:8016',
         serverSpeech: '/client/ws/speech',
         serverStatus: '/client/ws/status',
         contentType: 'content-type=audio/x-raw,+layout=(string)interleaved,+rate=(int)16000,+format=(string)S16LE,+channels=(int)1',
@@ -29,7 +29,7 @@ function Dictate(_config) {
     this.sending = false;
     this.samplesOffset = 0;
     this.chunkSize = 8000;
-    this.rate = 4;
+    this.rate = 10;
 
     // FILE METHODS
     this.send = function(file) {
@@ -53,7 +53,7 @@ function Dictate(_config) {
         if (this.samplesOffset >= this.audioFile.size) {
             console.log('file end');
             this.ws.send('EOS');
-            window.setTimeout(this.closeWebSocket.bind(this), 1000);
+            window.setTimeout(this.closeWebSocket.bind(this), this.rate*500);
             return;
         }
 
@@ -71,7 +71,7 @@ function Dictate(_config) {
             console.log(e.target.error);
         }
         // delay next read chunk according to rate
-        window.setTimeout(this.readChunks.bind(this), 250);
+        window.setTimeout(this.readChunks.bind(this), 1000/this.rate);
     };
 
     // MICROPHONE VARIABLES
