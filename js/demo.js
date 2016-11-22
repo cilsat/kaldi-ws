@@ -56,7 +56,7 @@ var cfgMic = {
     }
 };
 
-var mic = new Microphone();
+var dictate = new Dictate();
 
 // Private methods (called from the callbacks)
 function __message(code, data) {
@@ -92,31 +92,87 @@ function clearTranscription() {
     $("#trans").val("");
 }
 
-function toggleMic() {
-    $('#buttonMic').toggleClass('active');
-    if ($('#buttonMic').hasClass('active')) {
-        mic.record();
+function toggledictate() {
+    $('#buttondictate').toggleClass('active');
+    $('#buttonFile').toggleClass('disabled');
+    if ($('#buttondictate').hasClass('active')) {
+        dictate.record();
     } else {
-        mic.stop();
+        dictate.stop();
     }
 }
 
 function toggleFile() {
-    $('#audioFile').toggleClass('hidden');
-    $('#buttonFile').toggleClass('active');
+}
+
+function handleFile() {
+    $('#buttonSend').toggleClass('hidden');
+    $('#buttonPlay').toggleClass('hidden');
+    $('#infoFile').toggleClass('hidden');
+
+    var file = document.getElementById('audioFile').files[0];
+    if (file) {
+        var info;
+        if (file.type == 'audio/x-wav') {
+            $('#buttonSend').removeClass('disabled');
+            $('#buttonPlay').removeClass('disabled');
+            info = file.name;
+        } else {
+            $('#buttonSend').addClass('disabled');
+            $('#buttonPlay').addClass('disabled');
+            info = 'Unsupported format ' + file.type;
+        }
+        $('#infoFile').html(info);
+    } else {
+        console.log($('#audioFile').val());
+    }
 }
 
 function sendFile() {
-    var file = $('#audioFile').files[0];
-    console.log(file.filename);
+    console.log('sending ' + $('#audioFile').val());
+
+    var file = $('#audioFile').get(0).files[0];
+    /*var wavBlob = new Blob([file]);
+    var wavURL = window.URL.createObjectURL(wavBlob);
+    var audio = new Audio();
+    audio.src = wavURL;*/
+
+    dictate.send(file);
+    /*var chunkSize = 16000;
+    var offset = 0;
+    var r = new FileReader();
+
+    var readChunk = function(e) {
+        if (offset >= file.size) {
+            console.log('finished reading');
+        }
+        if (e.target.error == null) {
+            offset += e.target.result.byteLength;
+    };
+
+    var fileBlock = function() {
+        var blob = file.slice(offset, length+offset);
+        r.readAsArrayBuffer(blob);
+        */
+}
+
+function playFile() {
+    console.log('sent ' + $('#audioFile').val());
+
+    var file = $('#audioFile').get(0).files[0];
+    var wavBlob = new Blob([file]);
+    var wavURL = window.URL.createObjectURL(wavBlob);
+    var audio = new Audio();
+    audio.src = wavURL;
+    audio.play();
 }
 
 function cancel() {
-    mic.cancel();
+    dictate.cancel();
 }
 
 function init() {
-    mic.init();
+    dictate.init();
 }
 
 function showLog() {

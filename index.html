@@ -25,20 +25,24 @@
                  class="btn btn-default"
                  onclick="toggleMic();"
                  title="Rekam dan transkripsi ucapan dari mikrofon.">Mic</button>
-                <button
-                 type="button"
-                 id="buttonFile"
-                 class="btn btn-default"
-                 onclick="toggleFile();"
-                 title="Pilih dan upload file untuk ditranskripsi.">File</button>
-                <label class="custom-file">
-                    <input
-                       type="file"
-                       id="audioFile"
-                       class="custom-file-input hidden"
-                       onclick="sendFile();"/>
-                    <span class="custom-file-control"></span>
+                <label
+                id="buttonFile"
+                class="btn btn-default btn-file">
+                    File
+                    <input type="file" id="audioFile" style="display: none;" onchange="handleFile();"/>
                 </label>
+                <br/>
+                <span class="label label-info hidden" id="infoFile"></span>
+                <button
+                type="button"
+                id="buttonSend"
+                class="btn btn-default hidden disabled"
+                onclick="sendFile();">Send</button>
+                <button
+                type="button"
+                id="buttonPlay"
+                class="btn btn-default hidden disabled"
+                onclick="playFile();">Play</button>
             </div>
 
             <div class="row">
