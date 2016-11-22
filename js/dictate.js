@@ -2,7 +2,7 @@
 
 function Dictate(_config) {
     var configDefault = {
-        server: 'ws://117.102.69.52:8017',
+        server: 'ws://117.102.69.52:8013',
         serverSpeech: '/client/ws/speech',
         serverStatus: '/client/ws/status',
         contentType: 'content-type=audio/x-raw,+layout=(string)interleaved,+rate=(int)16000,+format=(string)S16LE,+channels=(int)1',
