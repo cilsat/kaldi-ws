@@ -2,7 +2,7 @@
 
 function Dictate(_config) {
     var configDefault = {
-        server: 'ws://117.102.69.52:8016',
+        server: 'ws://localhost:8080',
         serverSpeech: '/client/ws/speech',
         serverStatus: '/client/ws/status',
         contentType: 'content-type=audio/x-raw,+layout=(string)interleaved,+rate=(int)16000,+format=(string)S16LE,+channels=(int)1',
@@ -29,7 +29,7 @@ function Dictate(_config) {
     this.sending = false;
     this.samplesOffset = 0;
     this.chunkSize = 8000;
-    this.rate = 10;
+    this.rate = 8;
 
     // FILE METHODS
     this.send = function(file) {
@@ -37,8 +37,17 @@ function Dictate(_config) {
         this.ws = this.createWebSocket();
         this.audioFile = new Blob([file]);
         this.samplesOffset = 0;
+        this.sending = true;
 
         this.readChunks();
+    };
+
+    this.cancel = function() {
+        this.sending = false;
+        if (this.ws) {
+            this.closeWebSocket();
+            this.ws = null;
+        }
     };
 
     this.readChunks = function() {
@@ -52,8 +61,8 @@ function Dictate(_config) {
     this.onLoadChunk = function(e) {
         if (this.samplesOffset >= this.audioFile.size) {
             console.log('file end');
-            this.ws.send('EOS');
-            window.setTimeout(this.closeWebSocket.bind(this), this.rate*500);
+            // we don't need to close websocket connection manually
+            // let server close websocket when transcription has completed
             return;
         }
 

@@ -41,6 +41,7 @@ var dictate = new Dictate(cfgDictate);
 // Private methods (callbacks)
 function __updateTranscript(text) {
     $("#trans").val(text);
+    $('#trans').scrollTop($('#trans')[0].scrollHeight);
 }
 
 // Public methods (called from the GUI)
@@ -70,6 +71,10 @@ function toggleFile() {
         $('#buttonSend').toggleClass('hidden');
         $('#buttonPlay').toggleClass('hidden');
         $('#infoFile').toggleClass('hidden');
+
+        if ($('#buttonFile').hasClass('active')) {
+            dictate.cancel();
+        }
     }
 }
 
