@@ -2,7 +2,7 @@
 
 function Dictate(_config) {
   var configDefault = {
-    server: 'ws://localhost:6667/query',
+    server: 'ws://localhost:6543/query',
     bufferSize: 8192,
     inputChannels: 1,
     outputChannels: 1
@@ -18,13 +18,12 @@ function Dictate(_config) {
   this.inputChannels = config.inputChannels || configDefault.inputChannels;
   this.outputChannels = config.outputChannels || configDefault.outputChannels;
   this.sampleRate = 16000;
+  this.audioContext = window.AudioContext || window.webkitAudioContext;
 
   // MICROPHONE VARIABLES
   this.recording = false;
   this.requestedAccess = false;
   this.bufferUnusedSamples = new Float32Array(0);
-  this.samplesAll = new Float32Array(20000000);
-  this.samplesAllOffset = 0;
 
   // MICROPHONE METHODS
   this.record = function() {
@@ -39,14 +38,9 @@ function Dictate(_config) {
   };
 
   this.onMediaStream = function(stream) {
-    var AudioContext = window.AudioContext || window.webkitAudioContext;
-
     console.log('Handling media stream');
-    if (!AudioContext)
-      console.log('AudioContext unavailable');
 
-    if (!this.audioContext)
-      this.audioContext = new AudioContext();
+    this.audioContext = new AudioContext();
 
     var gain = this.audioContext.createGain();
     var audioInput = this.audioContext.createMediaStreamSource(stream);
@@ -73,7 +67,6 @@ function Dictate(_config) {
   this._onaudioprocess = function(data) {
     if (!this.recording) return;
     var chan = data.inputBuffer.getChannelData(0);
-    this.saveData(new Float32Array(chan));
     this.onAudio(this._exportDataBufferTo16Khz(new Float32Array(chan)));
   };
 
@@ -100,6 +93,13 @@ function Dictate(_config) {
 
   this.stop = function() {
     if (!this.recording) return;
+    if (this.ws) {
+      var state = this.ws.readyState;
+      if (state == 1) {
+        console.log('WS end stream');
+        this.ws.send(new Float32Array(0));
+      }
+    }
     this.recording = false;
     this.stream.getTracks()[0].stop();
     this.requestedAccess = false;
@@ -108,7 +108,6 @@ function Dictate(_config) {
       this.audioContext.close();
       this.audioContext = null;
     }
-    this.closeWebSocket();
   };
 
   this.closeWebSocket = function() {
@@ -118,19 +117,30 @@ function Dictate(_config) {
     }
   };
 
-  // UTILITY METHODS
+  // WEBSOCKET
   this.createWebSocket = function() {
     console.log('WS connecting');
     var url = this.server;
     var ws = new WebSocket(url);
+    ws.binaryType = 'arraybuffer';
+    var audioContext = this.audioContext;
+    var audioSamples = new Float32Array();
+    var audioOffset = 0;
+    var parts = [];
 
     ws.onmessage = function(msg) {
       var data = msg.data;
-      if (!(data instanceof Object) || !(data instanceof Blob)) {
+      if (data instanceof Object) {
+        var chunk = new Int16Array(data);
+        parts.push(chunk);
+        if (chunk.length === 0) {
+          var blob = new Blob(parts);
+        }
+      } else if (!(data instanceof Blob)) {
         var res = window.JSON.parse(data);
-        console.log(res.text);
+        console.log(res);
       } else {
-        console.log('WS cannot parse msg');
+        console.log('WS cannot parse msg of type ' + typeof data);
       }
     };
 
@@ -146,14 +156,6 @@ function Dictate(_config) {
     };
 
     return ws;
-  };
-
-  this.saveData = function(samples) {
-    for (var i = 0; i < samples.length; ++i) {
-      this.samplesAll[this.samplesAllOffset + i] = samples[i];
-    }
-    this.samplesAllOffset += samples.length;
-    //console.log('samples: ' + this.samplesAllOffset);
   };
 
   this._exportDataBufferTo16Khz = function(bufferNewSamples) {
