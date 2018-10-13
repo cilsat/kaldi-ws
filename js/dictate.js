@@ -134,7 +134,9 @@ function Dictate(_config) {
         var chunk = new Int16Array(data);
         parts.push(chunk);
         if (chunk.length === 0) {
-          var blob = new Blob(parts);
+          var blob = new Blob(parts, {'type': 'audio/wav'});
+          var blobUrl = URL.createObjectURL(blob);
+          config.onBlobUrl(blobUrl);
         }
       } else if (!(data instanceof Blob)) {
         var res = window.JSON.parse(data);
