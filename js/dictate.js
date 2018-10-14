@@ -18,7 +18,7 @@ function Dictate(_config) {
   this.inputChannels = config.inputChannels || configDefault.inputChannels;
   this.outputChannels = config.outputChannels || configDefault.outputChannels;
   this.sampleRate = 16000;
-  this.audioContext = window.AudioContext || window.webkitAudioContext;
+  this.AudioContext = window.AudioContext || window.webkitAudioContext;
 
   // MICROPHONE VARIABLES
   this.recording = false;
@@ -40,17 +40,15 @@ function Dictate(_config) {
   this.onMediaStream = function(stream) {
     console.log('Handling media stream');
 
-    this.audioContext = new AudioContext();
+    this.audioContext = new this.AudioContext();
 
     var gain = this.audioContext.createGain();
     var audioInput = this.audioContext.createMediaStreamSource(stream);
 
     audioInput.connect(gain);
 
-    if(!this.mic) {
-      this.mic = this.audioContext.createScriptProcessor(this.bufferSize,
-        this.inputChannels, this.outputChannels);
-    }
+    this.mic = this.audioContext.createScriptProcessor(this.bufferSize,
+      this.inputChannels, this.outputChannels);
 
     this.ws = this.createWebSocket();
     this.sampleRate = this.audioContext.sampleRate;
@@ -134,13 +132,13 @@ function Dictate(_config) {
         var chunk = new Int16Array(data);
         parts.push(chunk);
         if (chunk.length === 0) {
-          var blob = new Blob(parts, {'type': 'audio/wav'});
+          var blob = new Blob(parts, {'type': 'audio/opus'});
           var blobUrl = URL.createObjectURL(blob);
           config.onBlobUrl(blobUrl);
         }
       } else if (!(data instanceof Blob)) {
         var res = window.JSON.parse(data);
-        console.log(res);
+        config.onResult(res);
       } else {
         console.log('WS cannot parse msg of type ' + typeof data);
       }

@@ -30,9 +30,9 @@ var cfgDictate = {
     tt.add(hypos[0].transcript, false);
     __updateTranscript(tt.toString());
   },
-  onResults : function(text) {
-    tt.add(text, true);
-    __updateTranscript(tt.toString());
+  onResult : function(text) {
+    //tt.add(text, true);
+    __updateTranscript(text);
   },
   onBlobUrl : function(blobUrl) {
     __updateAudio(blobUrl);
@@ -43,7 +43,7 @@ var dictate = new Dictate(cfgDictate);
 
 // Private methods (callbacks)
 function __updateTranscript(text) {
-  $("#trans").val(text);
+  $("#trans").val("Question: " + text['question'] + '\nAnswer: ' + text['answer']);
   $('#trans').scrollTop($('#trans')[0].scrollHeight);
 }
 
